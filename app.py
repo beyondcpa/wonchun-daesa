@@ -5,6 +5,22 @@ import tempfile, zipfile, os, io
 import engine, builder
 
 st.set_page_config(page_title="원천세 대사표 자동생성", layout="wide")
+
+# ---- 비밀번호 잠금 ----
+PASSWORD = "beyond"
+if "auth" not in st.session_state:
+    st.session_state.auth = False
+if not st.session_state.auth:
+    st.title("🔒 접속 인증")
+    pw = st.text_input("비밀번호", type="password")
+    if st.button("입장") or pw:
+        if pw == PASSWORD:
+            st.session_state.auth = True
+            st.rerun()
+        elif pw:
+            st.error("비밀번호가 올바르지 않습니다.")
+    st.stop()
+
 st.title("📄 원천세 대사표 자동생성")
 st.caption("급여대장·이행상황신고서·급여명세서·간이지급조서를 담은 폴더(zip)를 올리면 대사표를 자동으로 만들어 드립니다.")
 
@@ -67,10 +83,14 @@ if up is not None:
     st.dataframe(rows, use_container_width=True)
 
     # 대사표 생성
-    xbytes = builder.build_bytes(parsed, int(year), company)
-    st.download_button("⬇️ 대사표 엑셀 다운로드", data=xbytes,
-                       file_name=f"원천세대사표_{year}.xlsx",
+    xbytes, miss = builder.build_bytes(parsed, int(year), company)
+    fname = (company.split("|")[0].strip() or "원천세") + f"_대사표_{year}.xlsx"
+    st.download_button("⬇️ 대사표 엑셀 다운로드", data=xbytes, file_name=fname,
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    st.info("다운로드한 엑셀은 파란 글자=외부자료 값복사(셀 메모에 출처파일), 검정=계산식, 주황=자료 미확보, 일치/불일치=단일 수식으로 되어 있습니다.")
+    if miss:
+        st.warning(f"미확보 자료 {len(miss)}건 — 엑셀의 '미확보자료' 시트에 목록 정리됨.")
+        with st.expander("미확보 자료 목록 보기"):
+            st.dataframe([{"항목": a, "월": b, "사유": c} for a, b, c in miss], use_container_width=True)
+    st.info("파란 글자=외부자료 값복사(셀 메모에 출처파일), 검정=계산식, 주황=자료 미확보, 일치/불일치=단일 수식(엑셀에서 열면 색 자동표시).")
 else:
     st.info("왼쪽에서 회사명·연도를 확인하고, 원천데이터 zip을 업로드하세요.")
