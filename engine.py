@@ -5,16 +5,20 @@
 import re, io, os, zipfile, warnings, tempfile
 from collections import defaultdict
 warnings.filterwarnings("ignore")
-import pdfplumber, xlrd
+import fitz, xlrd
 
 def _num(s):
     m = re.search(r"-?[\d,]+", str(s))
     return int(m.group().replace(",", "")) if m else None
 
 def pdf_text(src):
-    s = io.BytesIO(src) if isinstance(src, (bytes, bytearray)) else src
-    with pdfplumber.open(s) as pdf:
-        return "\n".join((p.extract_text() or "") for p in pdf.pages)
+    if isinstance(src, (bytes, bytearray)):
+        doc = fitz.open(stream=src, filetype="pdf")
+    else:
+        doc = fitz.open(src)
+    t = "\n".join(pg.get_text("text", sort=True) for pg in doc)
+    doc.close()
+    return t
 
 # ---------- 월 판별 (파일명 → 내용) ----------
 def month_from_name(name):
@@ -56,7 +60,7 @@ def parse_ihaeng_text(t):
         if "A01" in ln:
             n = re.findall(r"[\d,]+", ln)
             if len(n) >= 3: out["근로"] = {"인원": _num(n[-3]), "지급액": _num(n[-2]), "소득세": _num(n[-1])}
-        if re.search(r"매월징수 A25", ln):
+        if re.search(r"매월징수\s*A25", ln):
             n = re.findall(r"[\d,]+", ln)
             if len(n) >= 3: out["사업"] = {"인원": _num(n[-3]), "지급액": _num(n[-2]), "소득세": _num(n[-1])}
     return out
@@ -78,7 +82,9 @@ def parse_geun_gani_text(t):
     return {"반기": half, "과세소득": _num(m.group(1)) if m else None, "인원": _num(m2.group(1)) if m2 else None}
 
 def parse_saeop_gani_text(t):
-    m = re.search(r"총\s*지급액[^\d]*([\d,]{5,})", t) or re.search(r"총지급액[^\d]*([\d,]{5,})", t)
+    m = re.search(r"(\d+)\s*명\s+([\d,]{5,})", t)          # ⑤총지급액계 (N명 뒤 총액)
+    if m: return _num(m.group(2))
+    m = re.search(r"총\s*지급액[^\d]*([\d,]{5,})", t) or re.search(r"총지급액계[^\d]*([\d,]{5,})", t)
     if m: return _num(m.group(1))
     nums = [int(x.replace(",", "")) for x in re.findall(r"[\d,]{7,}", t)]
     return max(nums) if nums else None
