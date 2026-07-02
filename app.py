@@ -22,14 +22,14 @@ if not st.session_state.auth:
     st.stop()
 
 st.title("📄 원천세 대사표 자동생성")
-st.caption("급여대장·이행상황신고서·급여명세서·간이지급조서를 담은 폴더(zip)를 올리면 대사표를 자동으로 만들어 드립니다.")
+st.caption("원천자료를 담은 zip을 올리면 대사표를 자동 생성합니다. 폴더 구조는 상관없습니다 — 파일명·내용으로 월을 자동 인식합니다.")
 
 with st.sidebar:
     st.header("입력 정보")
-    company = st.text_input("회사명 / 사업자번호", value="㈜이노파인더스 | 431-86-01376")
+    company = st.text_input("회사명 / 사업자번호", value="", placeholder="예: (주)회사명 | 000-00-00000")
     year = st.number_input("귀속연도", min_value=2020, max_value=2100, value=2026, step=1)
     st.markdown("---")
-    st.markdown("**업로드 방법**\n\n연도 폴더(예: `2026`)를 통째로 **zip으로 압축**해서 올리세요. 폴더 안에 `01월`, `02월`… 하위폴더가 있어야 합니다.")
+    st.markdown("**업로드 방법**\n\n그 해 원천자료 파일들을 **zip으로 압축**해 올리세요. 월별 폴더로 나눠도, 한 폴더에 다 담아도 됩니다. 파일명·내용으로 **월을 자동 인식**합니다.\n\n대상: 급여대장·이행상황신고서·급여명세서·근로간이·사업간이지급조서")
 
 up = st.file_uploader("원천데이터 zip 업로드", type=["zip"])
 
